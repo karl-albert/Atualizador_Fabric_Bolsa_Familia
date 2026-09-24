@@ -1,0 +1,8 @@
+# Microsoft Fabric Secrets & Data
+*.parquet
+*.xlsx
+*.pbix
+*.tmp
+__pycache__/
+*.pyc
+staging_mensal_fabric/
