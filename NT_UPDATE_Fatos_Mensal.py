@@ -101,6 +101,10 @@ df_fato_redz_mensal = df_enriched.groupBy(
 ).agg(
     F.count("nis_favorecido").cast(LongType()).alias("total_beneficiarios"),
     F.round(F.sum("valor_parcela"), 2).cast(DecimalType(18, 2)).alias("valor_total_pago")
+).withColumn(
+    "valor_total_pago_novo",
+    F.when(F.col("mes_competencia") >= 202607, F.round(F.col("valor_total_pago") * 1.1504, 2))
+     .otherwise(F.col("valor_total_pago"))
 ).orderBy("mes_competencia", "uf", "nome_municipio", "Genero")
 
 print("[OK] Agregação analítica concluída com sucesso!")

@@ -68,7 +68,8 @@ def processar_mes_para_fabric(fpath, output_dir=OUTPUT_DIR):
             r.cod_municipio_siafi::INTEGER AS Cod_Municipio_Siafi,
             COUNT(r.nis_favorecido)::BIGINT AS total_beneficiarios,
             r.uf::VARCHAR AS uf,
-            ROUND(SUM(r.valor_parcela), 2)::DECIMAL(18,2) AS valor_total_pago
+            ROUND(SUM(r.valor_parcela), 2)::DECIMAL(18,2) AS valor_total_pago,
+            ROUND(CASE WHEN r.mes_competencia >= 202607 THEN SUM(r.valor_parcela) * 1.1504 ELSE SUM(r.valor_parcela) END, 2)::DECIMAL(18,2) AS valor_total_pago_novo
         FROM raw_data r
         GROUP BY 1, 2, 3, 4, 5, 7
         ORDER BY uf, nome_municipio, Genero
