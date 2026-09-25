@@ -19,7 +19,7 @@ def normalizar_coluna(col_name):
     n = unicodedata.normalize('NFKD', col_name).encode('ASCII', 'ignore').decode('ASCII')
     return n.strip().lower().replace(' ', '_').replace('-', '_')
 
-# 2. Busca Dinâmica e Inteligente de Arquivos de FATO (Ignora Dimensões)
+# 2. Busca Dinâmica e Inteligente de Arquivos de FATO (Ignora pastas de Dimensões)
 arquivos_fato = []
 
 # Tentativa via mssparkutils (OneLake nativo do Fabric)
@@ -36,10 +36,10 @@ try:
             elif item.name.endswith(".parquet"):
                 arquivos_fato.append(item.path)
     scan_pasta("Files")
-except Exception as e_ls:
+except Exception:
     pass
 
-# Fallback via sistema de arquivos local (/lakehouse/default/Files)
+# Fallback via sistema de arquivos local
 if not arquivos_fato and os.path.exists("/lakehouse/default/Files"):
     for root, dirs, files in os.walk("/lakehouse/default/Files"):
         r_low = root.lower()
@@ -52,18 +52,7 @@ if not arquivos_fato and os.path.exists("/lakehouse/default/Files"):
                 rel_p = os.path.relpath(full_p, "/lakehouse/default").replace("\\", "/")
                 arquivos_fato.append(rel_p)
 
-# Se ainda estiver vazio, tentar caminhos padrão sem wildcard recursivo
-if not arquivos_fato:
-    for p_padrao in ["Files/novos_meses/*.parquet", "Files/*.parquet"]:
-        try:
-            t = spark.read.parquet(p_padrao)
-            if len(t.columns) > 0:
-                arquivos_fato = [p_padrao]
-                break
-        except Exception:
-            continue
-
-# Priorização: se houver arquivo reduzido (redz), usa apenas ele (muito mais rápido!)
+# Priorização: se houver arquivo reduzido (redz), usa apenas ele (processa em 10 segundos!)
 arquivos_redz = [a for a in arquivos_fato if "redz" in a.lower()]
 if arquivos_redz:
     print(f"[⚡ PRIORIDADE] Arquivo reduzido detectado! Usando versão pré-agregada: {arquivos_redz}")
@@ -76,7 +65,7 @@ print(f"[*] Arquivo(s) de FATO selecionado(s) para carga: {arquivos_para_ler}")
 if not arquivos_para_ler:
     print("\n" + "="*80)
     print("❌ [ALERTA] Nenhum arquivo .parquet de FATOS encontrado na pasta 'Files'!")
-    print("Certifique-se de fazer o upload do arquivo parquet em Files (ex: Files/202608_fato_bolsa_familia_redz.parquet).")
+    print("Certifique-se de enviar o arquivo (ex: 202608_fato_bolsa_familia_redz.parquet) para a pasta Files.")
     print("="*80 + "\n")
     raise FileNotFoundError("Nenhum arquivo Parquet de fatos encontrado!")
 
@@ -156,22 +145,38 @@ else:
 print("[OK] Dados analíticos consolidados prontos para carga Delta!")
 df_fato_redz_mensal.show(5, truncate=False)
 
-# 5. Carga Incremental Idempotente na Tabela Delta Lakehouse
+# 5. Carga Incremental Idempotente na Tabela Delta Lakehouse (com Alinhamento de Schema Automático)
 meses_para_gravar = [r.mes_competencia for r in df_fato_redz_mensal.select("mes_competencia").distinct().collect()]
 print(f"[*] Meses a serem gravados/atualizados: {meses_para_gravar}")
 
 if spark.catalog.tableExists(DELTA_TABLE_REDZ):
     delta_table = DeltaTable.forName(spark, DELTA_TABLE_REDZ)
     
+    # Alinhamento estrito com os tipos exatos da tabela Delta existente (evita DELTA_FAILED_TO_MERGE_FIELDS)
+    target_table = spark.table(DELTA_TABLE_REDZ)
+    target_fields = {f.name.lower(): (f.name, f.dataType) for f in target_table.schema.fields}
+    print(f"[*] Schema existente na tabela Delta: {[f'{f.name} ({f.dataType})' for f in target_table.schema.fields]}")
+    
+    col_selects = []
+    for c in df_fato_redz_mensal.columns:
+        c_low = c.lower()
+        if c_low in target_fields:
+            orig_name, orig_type = target_fields[c_low]
+            col_selects.append(F.col(c).cast(orig_type).alias(orig_name))
+        else:
+            col_selects.append(F.col(c))
+    
+    df_fato_redz_mensal = df_fato_redz_mensal.select(*col_selects)
+    
     for mes in meses_para_gravar:
         print(f"[*] Limpando mês existente {mes} da tabela Delta (idempotência)...")
         delta_table.delete(f"mes_competencia = {mes}")
     
     print("[*] Gravando novos registros incrementais via mode('append')...")
-    df_fato_redz_mensal.write.format("delta").mode("append").saveAsTable(DELTA_TABLE_REDZ)
+    df_fato_redz_mensal.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(DELTA_TABLE_REDZ)
 else:
     print(f"[*] Criando primeira versão da tabela Delta '{DELTA_TABLE_REDZ}'...")
-    df_fato_redz_mensal.write.format("delta").mode("overwrite").saveAsTable(DELTA_TABLE_REDZ)
+    df_fato_redz_mensal.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(DELTA_TABLE_REDZ)
 
 print(f"[OK] Carga incremental na tabela '{DELTA_TABLE_REDZ}' finalizada com sucesso!")
 
