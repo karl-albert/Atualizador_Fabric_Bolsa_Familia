@@ -1,0 +1,36 @@
+name: Executar Pipeline Fabric
+
+on:
+  workflow_dispatch:
+    inputs:
+      motivo:
+        description: 'Motivo da Execucao'
+        required: false
+        default: 'Disparo manual via App de Farois / Mobile'
+
+jobs:
+  executar-fabric:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Clonar Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Dependencias
+        run: pip install requests
+
+      - name: Disparar Pipeline no Microsoft Fabric
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          FABRIC_WEBHOOK_URL: ${{ secrets.FABRIC_WEBHOOK_URL }}
+          WORKSPACE_ID: "0c2a1a5e-4519-4e4e-b3e6-14288c11291d"
+          PIPELINE_ID: "fd4247e7-462e-4a39-8df4-4d4854da6311"
+        run: python disparar_fabric.py

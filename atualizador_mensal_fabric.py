@@ -59,19 +59,31 @@ def processar_mes_para_fabric(fpath, output_dir=OUTPUT_DIR):
                 nis_favorecido,
                 valor_parcela
             FROM read_parquet('{sql_path}')
+        ),
+        agregado AS (
+            SELECT 
+                TRY_STRPTIME(r.mes_competencia::VARCHAR || '01', '%Y%m%d')::DATE AS Data,
+                IF(UPPER(TRIM(r.primeiro_nome)) LIKE '%A', 'Feminino', 'Masculino')::VARCHAR AS Genero,
+                r.mes_competencia::INTEGER AS mes_competencia,
+                r.nome_municipio::VARCHAR AS nome_municipio,
+                r.cod_municipio_siafi::INTEGER AS Cod_Municipio_Siafi,
+                r.uf::VARCHAR AS uf,
+                COUNT(r.nis_favorecido)::BIGINT AS total_beneficiarios,
+                ROUND(SUM(r.valor_parcela), 2)::DECIMAL(18,2) AS valor_total_pago
+            FROM raw_data r
+            GROUP BY r.mes_competencia, r.uf, r.nome_municipio, r.cod_municipio_siafi, 2, 1
         )
         SELECT 
-            TRY_STRPTIME(r.mes_competencia::VARCHAR || '01', '%Y%m%d')::DATE AS Data,
-            IF(UPPER(TRIM(r.primeiro_nome)) LIKE '%A', 'Feminino', 'Masculino')::VARCHAR AS Genero,
-            r.mes_competencia::INTEGER AS mes_competencia,
-            r.nome_municipio::VARCHAR AS nome_municipio,
-            r.cod_municipio_siafi::INTEGER AS Cod_Municipio_Siafi,
-            COUNT(r.nis_favorecido)::BIGINT AS total_beneficiarios,
-            r.uf::VARCHAR AS uf,
-            ROUND(SUM(r.valor_parcela), 2)::DECIMAL(18,2) AS valor_total_pago,
-            ROUND(CASE WHEN r.mes_competencia >= 202607 THEN SUM(r.valor_parcela) * 1.1504 ELSE SUM(r.valor_parcela) END, 2)::DECIMAL(18,2) AS valor_total_pago_novo
-        FROM raw_data r
-        GROUP BY 1, 2, 3, 4, 5, 7
+            Data,
+            Genero,
+            mes_competencia,
+            nome_municipio,
+            Cod_Municipio_Siafi,
+            total_beneficiarios,
+            uf,
+            valor_total_pago,
+            ROUND(CASE WHEN mes_competencia >= 202607 THEN valor_total_pago * 1.1504 ELSE valor_total_pago END, 2)::DECIMAL(18,2) AS valor_total_pago_novo
+        FROM agregado
         ORDER BY uf, nome_municipio, Genero
     ) TO '{sql_out}' (FORMAT PARQUET, COMPRESSION ZSTD);
     """
@@ -103,9 +115,10 @@ def main():
     processar_mes_para_fabric(ultimo_arquivo)
 
     print("\n" + "=" * 80)
-    print("[SUCESSO] Slice gerado e pronto para envio ao Microsoft Fabric Lakehouse!")
-    print("Para executar a carga no Fabric, execute o notebook:")
-    print(" -> NT_UPDATE_Fatos_Mensal.py (no Lakehouse LH_Bolsa_Familia)")
+    print("[SUCESSO] Arquivo consolidado gerado e pronto para envio ao Microsoft Fabric Lakehouse!")
+    print("Para executar a carga no Fabric, faça upload deste arquivo leve em:")
+    print(" -> Files/novos_meses/ (no Lakehouse LH_Bolsa_Familia)")
+    print("E execute o pipeline ou notebook: 001_NT_UPDATE_Mensal_TB_Fatos")
     print("=" * 80)
 
 if __name__ == "__main__":
