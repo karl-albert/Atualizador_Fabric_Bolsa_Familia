@@ -17,3 +17,4 @@ Repositório oficial para automação do pipeline mensal do **Bolsa Família Ana
 ## 🚀 Como Executar
 1. **Localmente**: Execute `Subir_Mes_Fabric.bat` para processar e gerar o slice mensal em Parquet.
 2. **No Fabric**: Importe `NT_UPDATE_Fatos_Mensal.py` no Lakehouse `LH_Bolsa_Familia` e agende via Fabric Pipeline.
+
