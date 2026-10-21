@@ -6,7 +6,7 @@ Repositório oficial para automação do pipeline mensal do **Bolsa Família Ana
 * **Lakehouse**: `LH_Bolsa_Familia`
 * **Tabela Delta Principal**: `fato_bolsa_familia_redz` (Direct Lake com Power BI)
 * **Notebook de Produção**: `NT_UPDATE_Fatos_Mensal.py`
-* **Preparador Local**: `atualizador_mensal_fabric.py` (Processamento de 19M linhas em 2.9s com DuckDB)
+* **Preparador Local**: `atualizador_mensal_fabric.py` (
 
 ## 📌 Regras de Negócio & Governança
 1. **Idempotência**: Substituição atômica por partição de mês (`mes_competencia`), evitando duplicidades históricas.
