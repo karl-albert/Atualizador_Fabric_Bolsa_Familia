@@ -1,6 +1,6 @@
 # Atualizador Mensal Bolsa Família — Microsoft Fabric Lakehouse
 
-Repositório oficial para automação do pipeline mensal do **Bolsa Família Analytics** no **Microsoft Fabric (Lakehouse LH_Bolsa_Familia)**.
+Repositório oficial para automação do pipeline mensal do **Bolsa Família Analytics** no **Microsoft Fabric (Lakehouse LH_Bolsa_Familia)**
 
 ## 🎯 Arquitetura da Solução
 * **Lakehouse**: `LH_Bolsa_Familia`
