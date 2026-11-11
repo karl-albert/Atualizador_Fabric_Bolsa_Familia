@@ -9,7 +9,7 @@ Repositório oficial para automação do pipeline mensal do **Bolsa Família Ana
 * **Preparador Local**: `atualizador_mensal_fabric.py` (
 
 ## 📌 Regras de Negócio & Governança
-1. **Idempotência**: Substituição atômica por partição de mês (`mes_competencia`), evitando duplicidades históricas.
+1. **Idempotência**: Substituição atômica por partição de mês (`mes_competencia`), evitando duplicidades histórica s.
 2. **Gênero**: Derivação por heurística no primeiro nome do favorecido (terminação em 'A' = Feminino, senão Masculino).
 3. **SIAFI & Geografia**: Alinhamento das chaves de município SIAFI e UF com a tabela de dimensões IBGE.
 4. **Performance**: Execução de `OPTIMIZE` e `Z-ORDER` para aceleração imediata no Direct Lake.
